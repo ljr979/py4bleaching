@@ -1,0 +1,27 @@
+name: sm_learning
+channels:
+  - conda-forge
+  - intel
+  - anaconda
+  - defaults
+dependencies:
+  - python==3.7.10
+  - scikit-learn==0.24.2
+  - cython==0.29.23
+  - pandas==1.2.4
+  - numpy==1.20.2
+  - seaborn==0.11.1
+  - matplotlib==3.4.2
+  - scipy==1.6.3
+  - sdt-python==14.4
+  - ipython==7.23.1
+  - ipykernel==5.5.5
+  - keras==2.4.3
+  - h5py==2.10.0
+  - tensorflow==2.3.0
+  - streamlit==0.81.1
+  - altair==4.1.0
+  - pip:
+    - loguru
+    - git+https://www.github.com/keras-team/keras-contrib
+    - git+https://github.com/dezeraecox-utilities/dl-4-tsc.git#egg=dl4tsc
