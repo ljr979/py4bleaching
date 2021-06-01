@@ -14,10 +14,17 @@ from sklearn.metrics import accuracy_score
 from sklearn.model_selection import GridSearchCV, train_test_split
 from tensorflow import keras
 from src.python_photobleaching.analysis import clean_trajectories
+from random import sample
 #need to add clean trajectories import :) 
 #---------------------------------------
 
-def prepare_data_for_labelling(input_files, output_folder):
+def prepare_data_for_labelling(input_files, output_folder, streamlit=False):
+    if not os.path.exists (f'{output_folder}labelling_molecules/'):
+        os.makedirs(f'{output_folder}labelling_molecules/')
+
+
+    if streamlit:
+        input_files=[filename for filename in f'{output_folder}labelling_molecules/' if 'labelled_data' in filename]
     smooshed_trajectories=[]
     for filepath in input_files:
         trajectories=pd.read_csv(f'{filepath}')
@@ -30,10 +37,22 @@ def prepare_data_for_labelling(input_files, output_folder):
     smooshed_trajectories['molecule_number']=smooshed_trajectories[['treatment', 'colocalisation', 'protein', 'number']].agg('_'.join, axis=1)
     smooshed_trajectories.drop(['treatment', 'colocalisation', 'protein', 'number'], axis=1, inplace=True)
 
-    if not os.path.exists (f'{output_folder}labelling_molecules/'):
-        os.makedirs(f'{output_folder}labelling_molecules/')
+    if not streamlit:
 
-    smooshed_trajectories.to_csv(f'{output_folder}labelling_molecules/data_for_training.csv')
+        #normalisation section where we normalise to max value in each trajectory
+        normalised_trajectories = smooshed_trajectories.copy().set_index('molecule_number')
+        normalised_trajectories = (normalised_trajectories.T/normalised_trajectories.T.max()).T
+
+        #split up into smaller chunks easier for streamlit stuff 
+        n = 100  #chunk row size
+        [normalised_trajectories[i:i+n].to_csv(f'{output_folder}labelling_molecules/data_for_training_{i}.csv') for i in range(0,normalised_trajectories.shape[0],n)]
+    else:
+        #here we are just trying to make all of the data we are training on has 1000 time points so that if I have longer time series, the model we have trained can operate on that shape of data
+        time_columns = [int(col) for col in smooshed_trajectories.columns.tolist() if col not in ['molecule_number', 'label']]
+        if max(time_columns) != 1000:
+            new_columns = [str(timepoint) for timepoint in range(max(time_columns)+1, 1000)]
+            smooshed_trajectories[new_columns] = np.nan
+        smooshed_trajectories.to_csv(f'{output_folder}labelling_molecules/smooshed_labels.csv')
 
 
 #Run streamlit NOW on smooshed_trajectories df. 
@@ -43,6 +62,7 @@ def map_labels(input_path, output_folder, labels):
     labelled_data=pd.read_csv(input_path)
     labelled_data.drop([col for col in labelled_data.columns if 'Unnamed' in col], axis=1, inplace=True)
     labelled_data['label'] = labelled_data['label'].map(labels)
+    labelled_data.rename(columns={'sample_name':'molecule_number'}, inplace=True)
     labelled_data.to_csv(f'{output_folder}labelled_data.csv')
 
 #--------------------------------------------------------------
@@ -84,7 +104,7 @@ def plot_data_samples(dataframe, sample_numbers):
     plt.savefig(f"{output_folder}samples.png")
 
 
-def prepare_data_for_training(x_train, y_train, x_test, y_test,):
+def prepare_data_for_training(X_train, y_train, X_test, y_test,):
     # transform the labels from integers to one hot vectors
     enc = preprocessing.OneHotEncoder(categories='auto')
     enc.fit(np.concatenate((y_train, y_test), axis=0).reshape(-1, 1))
@@ -94,15 +114,15 @@ def prepare_data_for_training(x_train, y_train, x_test, y_test,):
     # save orignal y because later we will use binary
     y_true = np.argmax(y_test, axis=1)
 
-    if len(x_train.shape) == 2:  # if univariate
+    if len(X_train.shape) == 2:  # if univariate
         # add a dimension to make it multivariate with one dimension 
-        x_train = x_train.values.reshape((x_train.shape[0], x_train.shape[1], 1))
-        x_test = x_test.values.reshape((x_test.shape[0], x_test.shape[1], 1))
+        X_train = X_train.values.reshape((X_train.shape[0], X_train.shape[1], 1))
+        X_test = X_test.values.reshape((X_test.shape[0], X_test.shape[1], 1))
 
-    return x_train, y_train, x_test, y_test
+    return X_train, y_train, X_test, y_test
 
 
-def fit_classifier(x_train, y_train, x_test, y_test, classifier_name, output_directory):
+def fit_classifier(X_train, y_train, X_test, y_test, classifier_name, output_directory):
 
     nb_classes = len(np.unique(np.concatenate((y_train, y_test), axis=0)))
 
@@ -115,64 +135,64 @@ def fit_classifier(x_train, y_train, x_test, y_test, classifier_name, output_dir
     # save orignal y because later we will use binary
     y_true = np.argmax(y_test, axis=1)
 
-    if len(x_train.shape) == 2:  # if univariate
+    if len(X_train.shape) == 2:  # if univariate
         # add a dimension to make it multivariate with one dimension 
-        x_train = x_train.values.reshape((x_train.shape[0], x_train.shape[1], 1))
-        x_test = x_test.values.reshape((x_test.shape[0], x_test.shape[1], 1))
+        X_train = X_train.values.reshape((X_train.shape[0], X_train.shape[1], 1))
+        X_test = X_test.values.reshape((X_test.shape[0], X_test.shape[1], 1))
 
-    input_shape = x_train.shape[1:]
+    input_shape = X_train.shape[1:]
     classifier = create_classifier(classifier_name, input_shape, nb_classes, output_directory)
 
-    classifier.fit(x_train, y_train, x_test, y_test, y_true)
+    classifier.fit(X_train, y_train, X_test, y_test, y_true)
 
 
 def create_classifier(classifier_name, input_shape, nb_classes, output_directory, verbose=False):
     if classifier_name == 'fcn':
-        from classifiers import fcn
+        from dl4tsc.classifiers import fcn
         return fcn.Classifier_FCN(output_directory, input_shape, nb_classes, verbose)
     if classifier_name == 'mlp':
-        from classifiers import mlp
+        from dl4tsc.classifiers import mlp
         return mlp.Classifier_MLP(output_directory, input_shape, nb_classes, verbose)
     if classifier_name == 'resnet':
-        from classifiers import resnet
+        from dl4tsc.classifiers import resnet
         return resnet.Classifier_RESNET(output_directory, input_shape, nb_classes, verbose)
     if classifier_name == 'mcnn':
-        from classifiers import mcnn
+        from dl4tsc.classifiers import mcnn
         return mcnn.Classifier_MCNN(output_directory, verbose)
     if classifier_name == 'tlenet':
-        from classifiers import tlenet
+        from dl4tsc.classifiers import tlenet
         return tlenet.Classifier_TLENET(output_directory, verbose)
     if classifier_name == 'twiesn':
-        from classifiers import twiesn
+        from dl4tsc.classifiers import twiesn
         return twiesn.Classifier_TWIESN(output_directory, verbose)
     if classifier_name == 'encoder':
-        from classifiers import encoder
+        from dl4tsc.classifiers import encoder
         return encoder.Classifier_ENCODER(output_directory, input_shape, nb_classes, verbose)
     if classifier_name == 'mcdcnn':
-        from classifiers import mcdcnn
+        from dl4tsc.classifiers import mcdcnn
         return mcdcnn.Classifier_MCDCNN(output_directory, input_shape, nb_classes, verbose)
     if classifier_name == 'cnn':  # Time-CNN
-        from classifiers import cnn
+        from dl4tsc.classifiers import cnn
         return cnn.Classifier_CNN(output_directory, input_shape, nb_classes, verbose)
     if classifier_name == 'inception':
-        from classifiers import inception
+        from dl4tsc.classifiers import inception
         return inception.Classifier_INCEPTION(output_directory, input_shape, nb_classes, verbose)
 
 
 def train_new_model(time_data, labels, output_folder, itrs=1, classifier_name='resnet'):
 
     # Split data into train and test portions
-    X_train, X_test, y_train, y_test = train_test_split(time_data.T, labels)
+    X_train, X_test, y_train, y_test = train_test_split(time_data, labels)
 
     # ----------------------train model----------------------
 
     for itr in range(itrs):
-        output_directory = f'{output_folder}{classifier_name}_{itr}/'
+        output_directory = f'{output_folder}{classifier_name}_{itr+1}/'
 
-        logger.info(f'Method: {classifier_name} using {itr} iterations.')
+        logger.info(f'Method: {classifier_name} using {itr+1} iterations.')
 
         if os.path.exists(f'{output_directory}df_metrics.csv'):
-            logger.info(f'{classifier_name} using {itr} iteration already done')
+            logger.info(f'{classifier_name} using {itr+1} iteration already done')
         else:
             if not os.path.exists(output_directory):
                 os.makedirs(output_directory)
@@ -182,13 +202,13 @@ def train_new_model(time_data, labels, output_folder, itrs=1, classifier_name='r
             logger.info('Training complete.')
 
             # evaluate best model on test data
-            x_train, y_train, x_test, y_test = prepare_data_for_training(X_train, y_train, X_test, y_test,)
+            X_train, y_train, X_test, y_test = prepare_data_for_training(X_train, y_train, X_test, y_test,)
             model = keras.models.load_model(output_directory + 'best_model.hdf5')
-            y_pred = model.predict(x_test)
+            y_pred = model.predict(X_test)
             y_pred = np.argmax(y_pred, axis=1)
             y_true = np.argmax(y_test, axis=1)
             model_metrics = calculate_metrics(y_true, y_pred, 0.0)
-            logger.info(f'Iteration {itr}: df metrics')
+            logger.info(f'Iteration {itr+1}: df metrics')
             [logger.info(f'{measure}: {round(val, 2)}') for measure, val in model_metrics.T.reset_index().values]
 
 
@@ -237,6 +257,7 @@ def plot_comparison(comparison, palette=False):
 
     data=pd.melt(comparison, id_vars=['label'], value_vars=time_columns, var_name='time')
     data['time']=data['time'].astype(int)
+    data_subset = sample([col for col in data.columns.tolist()], 20)
     for molecule, df in comparison[comparison['diff'] == 1].groupby('molecule_number'):
         
         original_label = df['label'].tolist()[0]
@@ -267,13 +288,13 @@ def pipeline(input_path,output_folder, labels):
     raw_data['label'] = raw_data['label'].fillna(0)
 
     # prepare time series data
-    time_data = raw_data[[col for col in raw_data.columns.tolist() if col not in ['molecule_number', 'label']]].T.reset_index(drop=True)
+    time_data = raw_data[[col for col in raw_data.columns.tolist() if col not in ['molecule_number', 'label']]].reset_index(drop=True)
 
     # prepare label data
     labels = raw_data['label'].copy().astype(int)
 
     # train model
-    #train_new_model(time_data, labels, f'{output_folder}trained_model/', itrs=1, classifier_name='resnet')
+    train_new_model(time_data, labels, f'{output_folder}trained_model/', itrs=1, classifier_name='resnet')
 
     #read in raw data and time data
     raw_data = pd.read_csv(f'{output_folder}labelling_molecules/labelled_data.csv')
@@ -282,7 +303,7 @@ def pipeline(input_path,output_folder, labels):
 
     # prepare time series data
     time_data = raw_data[[col for col in raw_data.columns.tolist() if col not in ['molecule_number', 'label']]]
-    time_data = predict_labels(time_data, f'{output_folder}trained_model/resnet_1/best_model.hdf5')
+    time_data = predict_labels(time_data, f'{output_folder}trained_model/resnet_1/last_model.hdf5')
     time_data.groupby('label').count()
     comparison = compare_labels(raw_data, time_data)
     palette = {0.0: 'firebrick', 1.0: 'darkorange', 2.0: 'rebeccapurple', '0': 'firebrick', '1': 'darkorange', '3': 'rebeccapurple'}
@@ -296,17 +317,21 @@ if __name__ == "__main__":
         'Results/training_model/20210113_Exp_17_647data/clean_data/cleaned_data.csv'
         ]
     output_folder = 'Results/training_model/20210525_647datacompiled/'
+        
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
 
+    prepare_data_for_labelling(input_files, output_folder, streamlit=False)
 
-    prepare_data_for_labelling(input_files, output_folder)
-
-    #now do streamlit at this point and come back to run pipeline
-
+    #now do streamlit at this point and come back to run pipeline (now have a bunch of normalised trajectory files with same unique names cause it's easier for streamlit, and just smoosh them back together for training model)
+    #giving empty list for the input files because in the previous running of this function we define the input files as a bunch of files that have 'labelled_data' in them, which is what we get from strealit output
+    prepare_data_for_labelling(input_files=[], output_folder=output_folder, streamlit=True)
     #input path for the labelled molecules after streamlit
     #input_path = f'Results/training_model/20210525_647datacompiled/labelling_molecules/labelled_molecules.csv'
-    input_path='Results/analysis_pipeline/20201209_Exp_14_test/predict_labels/predicted_labels.csv'
+
+    input_path= f'{output_folder}labelling_molecules/smooshed_labels.csv'
+
     #change this dictionary depending on what I label them in streamlit
-    labels={0:0, 1:1, 2:2}
+    labels={'big':0, 'small':1, 'discard':2}
 
     pipeline(input_path, output_folder, labels)
-

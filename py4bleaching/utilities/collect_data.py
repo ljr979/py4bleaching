@@ -6,13 +6,13 @@ import glob
 import shutil
 
 
-def move_files(folders, output_folder, hsp_colocalised = 'Hsp_colocal_traj', hsp_noncolocal = 'Hsp_non-colocal_traj', client_colocalised = 'Client_colocal_traj', client_noncolocal ='Client_non-colocal_traj'):
+def move_files(folders, hsp_colocalised = 'Hsp_colocal_traj', hsp_noncolocal = 'Hsp_non-colocal_traj', client_colocalised = 'Client_colocal_traj', client_noncolocal ='Client_non-colocal_traj'):
     for old_folder, (new_folder, filetype) in folders.items():
-        old_files = [filename for filename in os.listdir(f'{old_folder}') if '.csv' in filename]
+        old_files = [filename for filename in os.listdir(f'{input_folder}{old_folder}') if '.csv' in filename]
         if not os.path.exists(f'{output_folder}{new_folder}'):
             os.makedirs(f'{output_folder}{new_folder}')
         for x, filename in enumerate(old_files): 
-            shutil.copyfile(f'{old_folder}{filename}', f'{output_folder}{new_folder}{filetype}{x}.csv')
+            shutil.copyfile(f'{input_folder}{old_folder}{filename}', f'{output_folder}{new_folder}{filetype}{x}.csv')
 
 
 if __name__ == "__main__":
