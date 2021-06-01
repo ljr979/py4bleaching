@@ -13,7 +13,7 @@ from sklearn import preprocessing
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import GridSearchCV, train_test_split
 from tensorflow import keras
-from src.python_photobleaching.analysis import clean_trajectories
+from py4bleaching.analysis import clean_trajectories
 from random import sample
 #need to add clean trajectories import :) 
 #---------------------------------------

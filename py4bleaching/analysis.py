@@ -9,7 +9,7 @@ import seaborn as sns
 from loguru import logger
 from sdt import changepoint
 from tensorflow import keras
-
+from py4bleaching.utilities.collect_model import download_model
 #step01 cleanup trajectories 
 def clean_trajectories(input_folder, output_folder):
         
@@ -291,12 +291,16 @@ def sanity_checks(clean_data):
 
 
 
-def pipeline(input_folder,output_folder, probability_threshold, model_path):
+def pipeline(input_folder,output_folder, probability_threshold, model_name):
 
-    output_folders = ['clean_data', 'predict_labels', 'fitting_changepoints','calculate_molecule_size']
+    output_folders = ['clean_data', 'predict_labels', 'fitting_changepoints','calculate_molecule_size', 'model_for_prediction']
+    
     for folder in output_folders:
         if not os.path.exists(f'{output_folder}{folder}/'):
             os.makedirs(f'{output_folder}{folder}/')
+    #this bit says if the model isnt in the output folder then download it
+    if not os.path.exists(f'{output_folder}model_for_prediction/{model_name}.hdf5'):
+        download_model(model_name, f'{output_folder}model_for_prediction/')
 
     clean_trajectories(input_folder, f'{output_folder}clean_data/')
     #----------------------------------------------------
@@ -370,6 +374,8 @@ if __name__ == "__main__":
 
     input_folder = 'CAITLIN PROTOCOL example data/20201209_Exp_14_test/'
     output_folder = 'Results/test_analysis_pipeline/20201209_Exp_14_test/'
-    model_path= f'Results/training_model/resnet_5/best_model.hdf5'
 
-    pipeline(input_folder, output_folder, probability_threshold=0.5, model_path=model_path)
+    #change this according to the model that you'd like to use (from the repo with all the models)
+    model_name = 'Model_1'
+
+    pipeline(input_folder, output_folder, probability_threshold=0.5, model_name=model_name)
