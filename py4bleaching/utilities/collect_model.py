@@ -10,6 +10,7 @@ from loguru import logger
 
 logger.info('Import OK')
 
+
 def download_model(model_name, output_folder, URL='https://github.com/ljr979/py4bleaching_models/raw/main/'):
     """
     Worker function to download and save file from URL.
@@ -36,6 +37,6 @@ def download_model(model_name, output_folder, URL='https://github.com/ljr979/py4
 
 
 if __name__ == "__main__":
-    
-    output_folder = 'py4bleaching/'
+#Find the info for which model to dowload in each experiment at the https://github.com/ljr979/py4bleaching_models repository, then add the details into the parameters (adjust output folder to be the experiment repository)
+    output_folder = 'model_for_prediction/'
     download_model(model_name='Model_1', output_folder=output_folder)
