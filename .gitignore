@@ -128,3 +128,4 @@ dmypy.json
 # Pyre type checker
 .pyre/
 .vscode/settings.json
+py4bleaching/Model_1.hdf5
