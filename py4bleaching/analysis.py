@@ -291,7 +291,7 @@ def sanity_checks(clean_data):
 
 
 
-def pipeline(input_folder,output_folder, probability_threshold, model_name):
+def pipeline(input_folder,output_folder, probability_threshold, model_name, model_path):
 
     output_folders = ['clean_data', 'predict_labels', 'fitting_changepoints','calculate_molecule_size', 'model_for_prediction']
     
@@ -313,7 +313,7 @@ def pipeline(input_folder,output_folder, probability_threshold, model_name):
     time_data = raw_data[[col for col in raw_data.columns.tolist() if col not in ['molecule_number', 'label']]].reset_index(drop=True)
 
     #this is the actual prediction part
-    time_data = predict_labels(time_data, model_path=f'{output_folder}model_for_prediction/{model_name}.hdf5')
+    time_data = predict_labels(time_data, model_path)
     #adds molecule numbers from original dataframe back onto the labelled time data
     time_data['molecule_number'] = raw_data['molecule_number']
 
@@ -378,4 +378,4 @@ if __name__ == "__main__":
     #change this according to the model that you'd like to use (from the repo with all the models)
     model_name = 'Model_1'
     model_path = f'{output_folder}model_for_prediction/{model_name}.hdf5'
-    pipeline(input_folder, output_folder, probability_threshold=0.5, model_name=model_name)
+    pipeline(input_folder, output_folder, probability_threshold=0.5, model_name=model_name, model_path= model_path)
