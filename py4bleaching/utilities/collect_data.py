@@ -6,13 +6,20 @@ import glob
 import shutil
 
 
-def move_files(folders, hsp_colocalised = 'Hsp_colocal_traj', hsp_noncolocal = 'Hsp_non-colocal_traj', client_colocalised = 'Client_colocal_traj', client_noncolocal ='Client_non-colocal_traj'):
+def move_files(folders, file_types=False):
+    if not file_types:
+        file_types = {
+        'hsp_colocalised': 'Hsp_colocal_traj', 
+        'hsp_noncolocal': 'Hsp_non-colocal_traj', 
+        'client_colocalised': 'Client_colocal_traj', 
+        'client_noncolocal':'Client_non-colocal_traj'
+        }
     for old_folder, (new_folder, filetype) in folders.items():
         old_files = [filename for filename in os.listdir(f'{input_folder}{old_folder}') if '.csv' in filename]
         if not os.path.exists(f'{output_folder}{new_folder}'):
             os.makedirs(f'{output_folder}{new_folder}')
         for x, filename in enumerate(old_files): 
-            shutil.copyfile(f'{input_folder}{old_folder}{filename}', f'{output_folder}{new_folder}{filetype}{x}.csv')
+            shutil.copyfile(f'{input_folder}{old_folder}{filename}', f'{output_folder}{new_folder}{file_types[filetype]}{x}.csv')
 
 
 if __name__ == "__main__":
@@ -33,8 +40,8 @@ if __name__ == "__main__":
     # 'non-colocalised aB-c/': ('noncrosslinked-aBc/non-coloc/', hsp_noncolocal,),
     # 'colocalised aB-c/': ('noncrosslinked-aBc/coloc/', hsp_colocalised,),
 
-    'CLIC UNHEATED 13012021/Trajectories/':('CLIC_not-heated/non-coloc/', client_noncolocal), 
-    'CLIC HEATED 13012021/Trajectories/':('CLIC_heated/non-coloc/', client_noncolocal)
+    'CLIC UNHEATED 13012021/Trajectories/':('CLIC_not-heated/non-coloc/', 'client_noncolocal'), 
+    'CLIC HEATED 13012021/Trajectories/':('CLIC_heated/non-coloc/', 'client_noncolocal')
         
         }
 
