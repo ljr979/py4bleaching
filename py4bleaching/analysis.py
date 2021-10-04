@@ -331,7 +331,9 @@ def pipeline(input_folder,output_folder, probability_threshold, model_name):
     small_molecules= small_molecules [[col for col in small_molecules.columns.tolist() if col not in ['molecule_number', 'label']]].copy().T.reset_index().rename(columns={'index':'time'})
     
     #creates a subset of the data randomly to visualise the thresholds for small molecules
-    molecules_to_test = sample([col for col in small_molecules.columns.tolist() if col is not 'time'], 5)
+    test_list = [col for col in small_molecules.columns.tolist() if col is not 'time']
+    molecules_to_test = sample(test_list, 5)
+    #molecules_to_test = sample([col for col in small_molecules.columns.tolist() if col is not 'time'], 5)
 
     #performs the function and visualise the sample. once probability is checked can move forward
     test_probs = find_changepoints(small_molecules, f'{output_folder}fitting_changepoints/', molecules_to_test, intensity_column='fluorescence', probability_threshold=probability_threshold, visualise=True)
