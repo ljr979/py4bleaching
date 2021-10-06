@@ -58,13 +58,21 @@ def clean_trajectories(input_folder, output_folder):
     smooshed_trajectories['molecule_number'] = [f'{metadata}_{x}' for x, metadata in enumerate(smooshed_trajectories['metadata'])]
     timeseries_data = ['molecule_number'] + [col for col in smooshed_trajectories.columns.tolist() if type(col) == int]
     timeseries_data = smooshed_trajectories[timeseries_data].copy()
-
+    #this line saves the UNIQUE MOLECULE NUMBERS with the RAW TRAJECTORIES (not normalised or anything)
     timeseries_data.to_csv(f'{output_folder}cleaned_data.csv')
+
+    #now to normalise on the y axis so that we can feed normalised data to the model, which will always have a normalised Y axis
+    normalised_trajectories = timeseries_data.copy().set_index('molecule_number')
+    normalised_trajectories = timeseries_data.T/timeseries_data.T.max()
+
+    #split up into smaller chunks easier for streamlit stuff 
+    normalised_trajectories.to_csv(f'{output_folder}clean_data/normalised_clean_data.csv') 
 
 #step02 predict labels section 
 def prepare_data_to_predict(time_data):
             #here we are just trying to make all of the data we are training on has 1000 time points so that if I have longer time series, the model we have trained can operate on that shape of data
     time_columns = [int(col) for col in time_data.columns.tolist() if col not in ['molecule_number', 'label']]
+
     if max(time_columns) != 1000:
         new_columns = [str(timepoint) for timepoint in range(max(time_columns)+1, 1000)]
         time_data[new_columns] = np.nan
