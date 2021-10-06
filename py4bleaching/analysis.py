@@ -63,19 +63,19 @@ def clean_trajectories(input_folder, output_folder):
 
     #now to normalise on the y axis so that we can feed normalised data to the model, which will always have a normalised Y axis
     normalised_trajectories = timeseries_data.copy().set_index('molecule_number')
-    normalised_trajectories = timeseries_data.T/timeseries_data.T.max()
+    normalised_trajectories = (normalised_trajectories.T/normalised_trajectories.T.max()).T.reset_index()
 
     #split up into smaller chunks easier for streamlit stuff 
-    normalised_trajectories.to_csv(f'{output_folder}clean_data/normalised_clean_data.csv') 
+    normalised_trajectories.to_csv(f'{output_folder}normalised_clean_data.csv') 
 
 #step02 predict labels section 
 def prepare_data_to_predict(time_data):
             #here we are just trying to make all of the data we are training on has 1000 time points so that if I have longer time series, the model we have trained can operate on that shape of data
     time_columns = [int(col) for col in time_data.columns.tolist() if col not in ['molecule_number', 'label']]
 
-    if max(time_columns) != 1000:
-        new_columns = [str(timepoint) for timepoint in range(max(time_columns)+1, 1000)]
-        time_data[new_columns] = np.nan
+    #if max(time_columns) != 1000:
+        #new_columns = [str(timepoint) for timepoint in range(max(time_columns)+1, 1000)]
+        #time_data[new_columns] = np.nan
     return time_data.values.reshape((time_data.shape[0], time_data.shape[1], 1))
 
 def predict_labels(time_data, model_path):
@@ -319,7 +319,7 @@ def pipeline(input_folder,output_folder, probability_threshold, model_name):
     raw_data = pd.read_csv(f'{output_folder}clean_data/cleaned_data.csv')
     raw_data.drop([col for col in raw_data.columns.tolist() if 'Unnamed: ' in col], axis=1, inplace=True)
     normalised_data = pd.read_csv(f'{output_folder}clean_data/normalised_clean_data.csv')
-
+    normalised_data.drop([col for col in normalised_data.columns.tolist() if 'Unnamed: ' in col], axis=1, inplace=True)
     # prepare time series data (leaves only time so that the model knows how to read it)
     time_data = normalised_data[[col for col in normalised_data.columns.tolist() if col not in ['molecule_number', 'label']]].reset_index(drop=True)
    
@@ -394,10 +394,10 @@ def pipeline(input_folder,output_folder, probability_threshold, model_name):
 
 if __name__ == "__main__":
 
-    input_folder = 'CAITLIN PROTOCOL example data/20201209_Exp_14_test/'
-    output_folder = 'Results/test_analysis_pipeline/20201209_Exp_14_test/'
+    input_folder = 'imagejresults/Experiment32_hsp27_01/'
+    output_folder = 'Results/model_2_test/Hsp27_all/'
 
     #change this according to the model that you'd like to use (from the repo with all the models)
-    model_name = 'Model_1'
+    model_name = 'Model_2'
   
     pipeline(input_folder, output_folder, probability_threshold=0.5, model_name=model_name)
