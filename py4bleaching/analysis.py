@@ -318,17 +318,27 @@ def pipeline(input_folder,output_folder, probability_threshold, model_name):
     # Read in dataset
     raw_data = pd.read_csv(f'{output_folder}clean_data/cleaned_data.csv')
     raw_data.drop([col for col in raw_data.columns.tolist() if 'Unnamed: ' in col], axis=1, inplace=True)
+    normalised_data = pd.read_csv(f'{output_folder}clean_data/normalised_clean_data.csv')
 
     # prepare time series data (leaves only time so that the model knows how to read it)
-    time_data = raw_data[[col for col in raw_data.columns.tolist() if col not in ['molecule_number', 'label']]].reset_index(drop=True)
+    time_data = normalised_data[[col for col in normalised_data.columns.tolist() if col not in ['molecule_number', 'label']]].reset_index(drop=True)
    
     #this is the actual prediction part
     time_data = predict_labels(time_data, model_path)
-    #adds molecule numbers from original dataframe back onto the labelled time data
-    time_data['molecule_number'] = raw_data['molecule_number']
 
-    # Save to csv
-    time_data.to_csv(f'{output_folder}/predict_labels/predicted_labels.csv')
+    #adds molecule numbers from original dataframe back onto the labelled time data (normalised here)
+    time_data['molecule_number'] = normalised_data['molecule_number']
+
+    # Save to csv (normalised)
+    time_data.to_csv(f'{output_folder}/predict_labels/normalised_with_labels.csv')
+
+    #now need to also map the labels from the time_data above, onto the raw data using a dictionary to match up the label to the molecule number (call this predicted_labels.csv)
+    labels_dict = dict(time_data[['molecule_number','label']].values)
+
+    #map these labels onto raw data
+    raw_data['label'] = raw_data['molecule_number'].map(labels_dict)
+    raw_data.to_csv(f'{output_folder}/predict_labels/predicted_labels.csv')
+
 
     #--------------------------------------------------------
 
