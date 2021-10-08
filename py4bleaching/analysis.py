@@ -276,7 +276,7 @@ def plotting_molecule_size(step_sizes, molecule_counts, output_folder):
             ax.annotate(f"median={round(df[f'{size_type}_mol_count'].median(), 2)}", xy=(0.7, 0.8), xycoords='figure fraction')
             ax.axvline(df[f'{size_type}_mol_count'].median(), linestyle='--', color='red')
             plt.title(f'{group} {size_type}')
-            plt.xlim(0,df.max())
+            plt.xlim(0,df[f'{size_type}_mol_count'].max())
             plt.ylim(0, max_hist_count)
             plt.xlabel('Molecule count')
             plt.savefig(f'{output_folder}/histogram_{group}_{size_type}.png')
