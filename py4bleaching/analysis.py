@@ -268,6 +268,7 @@ def plotting_molecule_size(step_sizes, molecule_counts, output_folder):
         size_type=size_type.replace('_stepsize', '')
         #make the dataframe manually binned for the histogram, counts how many molecules counted in each bin, then takes the max so you can set the y limit accordingly (scales all histograms to max value) 
         max_hist_count = pd.cut(molecule_counts[f'{size_type}_mol_count'], bins=np.arange(0, 50)).reset_index().groupby(f'{size_type}_mol_count').count().max().tolist()[0]
+        x_limits = molecule_counts.max()
         
         for group, df in molecule_counts.groupby(['colocalisation', 'treatment']): 
             fig, ax = plt.subplots()
