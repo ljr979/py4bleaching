@@ -284,7 +284,8 @@ def plotting_molecule_size(step_sizes, molecule_counts, output_folder):
 
 
 def sanity_checks(clean_data):
-    test_Df = pd.melt(clean_data, id_vars= ['label', 'molecule_number'], value_vars=[f'{x}' for x in range(600)], var_name='timepoint', value_name='intensity' )
+    time_data = clean_data[[col for col in clean_data.columns.tolist() if col not in ['molecule_number', 'label']]].reset_index(drop=True)
+    test_Df = pd.melt(clean_data, id_vars= ['label', 'molecule_number'], value_vars=[f'{x}' for x in range(0, len(time_data.columns))], var_name='timepoint', value_name='intensity' )
 
     test_Df[['treatment', 'colocalisation', 'protein', 'molecule_number']] = test_Df['molecule_number'].str.split('_', expand = True)
 
