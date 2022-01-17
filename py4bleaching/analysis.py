@@ -247,7 +247,8 @@ def calculating_stoichiometries(clean_data, step_sizes):
 
     molecule_counts = []
     for molecule, df in usable_trajectories.groupby('molecule_number'):
-        max_fluorescence_value = np.max(sorted(df[timepoint_columns].values[0], reverse=True))
+        #max_fluorescence_value = np.max(sorted(df[timepoint_columns].values[0], reverse=True))
+        max_fluorescence_value = max(df[timepoint_columns].values[0])
         # Calculate average number of molecules by mean fluorescence / step size
         molecule_counts.append(pd.DataFrame([molecule, max_fluorescence_value]).T)
 
