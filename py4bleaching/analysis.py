@@ -34,11 +34,22 @@ def clean_trajectories(input_folder, output_folder):
             exp_condition = file_details[-3].split('_')[-1]
             coloc_type = file_details[-2]
             protein_type = file_details [-1].split('_')[0]
+            
 
             raw_trajectories = pd.read_csv(f"{filepath}")
             # see pd.concat documentation for more info
             raw_trajectories.drop([col for col in raw_trajectories.columns.tolist() if ' ' in col], axis=1, inplace = True)
             raw_trajectories = raw_trajectories.T.reset_index().rename(columns = {'index': 'molecule_number'})
+            coords_all=[]
+            IDs=[]
+            for row in raw_trajectories['molecule_number']:
+                split=row.split('_')
+                coords=split[-2]+'_'+split[-1]
+                contour_ID=split[-3]
+                IDs.append(contour_ID)
+                coords_all.append(coords)
+            raw_trajectories['coords']=coords_all
+            raw_trajectories['Contour_ID']=IDs
             raw_trajectories['treatment'] = exp_condition
             raw_trajectories['colocalisation'] = coloc_type
             raw_trajectories['protein'] = protein_type
@@ -52,7 +63,7 @@ def clean_trajectories(input_folder, output_folder):
     smooshed_trajectories.to_csv(f'{output_folder}/{folder}_initial_compiled_data.csv')
 
     #now need to assign unique names to the molecules
-    smooshed_trajectories['metadata'] = smooshed_trajectories['treatment'] + '_' + smooshed_trajectories['colocalisation'] + '_' + smooshed_trajectories['protein']
+    smooshed_trajectories['metadata'] = smooshed_trajectories['treatment'] + '_' + smooshed_trajectories['colocalisation'] + '_' + smooshed_trajectories['protein'] + '_' + smooshed_trajectories['Contour_ID'] + '_' + smooshed_trajectories['coords'] 
     #line below does exact same thing as above, but different way (in case u want to change later)
     #smooshed_trajectories ['metadata'] = [f'{treatment}_{coloc_type}_{protein_type}' for treatment, coloc_type, protein_type in smooshed_trajectories[['treatment', 'colocalisation', 'protein']].values]
     smooshed_trajectories['molecule_number'] = [f'{metadata}_{x}' for x, metadata in enumerate(smooshed_trajectories['metadata'])]
@@ -442,7 +453,7 @@ def sanity_checks(clean_data):
     time_data = clean_data[[col for col in clean_data.columns.tolist() if col not in ['molecule_number', 'label']]].reset_index(drop=True)
     test_Df = pd.melt(clean_data, id_vars= ['label', 'molecule_number'], value_vars=[f'{x}' for x in range(0, len(time_data.columns))], var_name='timepoint', value_name='intensity' )
 
-    test_Df[['treatment', 'colocalisation', 'protein', 'molecule_number']] = test_Df['molecule_number'].str.split('_', expand = True)
+    test_Df[['treatment', 'colocalisation', 'protein', 'Contour_ID', 'coords', 'molecule_number']] = test_Df['molecule_number'].str.split('_', expand = True)
 
     test_Df['timepoint']=test_Df['timepoint'].astype(int)
     sns.lineplot(data=test_Df, x='timepoint', y='intensity', hue='treatment')
