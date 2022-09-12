@@ -453,7 +453,7 @@ def sanity_checks(clean_data):
     time_data = clean_data[[col for col in clean_data.columns.tolist() if col not in ['molecule_number', 'label']]].reset_index(drop=True)
     test_Df = pd.melt(clean_data, id_vars= ['label', 'molecule_number'], value_vars=[f'{x}' for x in range(0, len(time_data.columns))], var_name='timepoint', value_name='intensity' )
 
-    test_Df[['treatment', 'colocalisation', 'protein', 'Contour_ID', 'coords', 'molecule_number']] = test_Df['molecule_number'].str.split('_', expand = True)
+    test_Df[['treatment', 'colocalisation', 'protein', 'Contour_ID', 'coordsX','coordsY', 'molecule_number']] = test_Df['molecule_number'].str.split('_', expand = True)
 
     test_Df['timepoint']=test_Df['timepoint'].astype(int)
     sns.lineplot(data=test_Df, x='timepoint', y='intensity', hue='treatment')
