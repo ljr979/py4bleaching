@@ -424,7 +424,7 @@ def calculating_stoichiometries(clean_data, step_sizes):
         molecule_counts[f'{size_type}_mol_count'] = molecule_counts['max_fluorescence'] / size
         
     molecule_counts[[col for col in molecule_counts.columns if 'molecule_number' not in col]]=molecule_counts[[col for col in molecule_counts.columns if 'molecule_number' not in col]].astype(float)
-    molecule_counts[['treatment', 'colocalisation', 'protein', 'molecule_number']] = molecule_counts['molecule_number'].str.split('_', expand = True)
+    molecule_counts[['treatment', 'colocalisation', 'protein', 'Contour_ID', 'coords', 'molecule_number']] = molecule_counts['molecule_number'].str.split('_', expand = True)
     return molecule_counts
 
 def plotting_molecule_size(step_sizes, molecule_counts, output_folder):
