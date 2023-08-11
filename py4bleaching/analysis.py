@@ -11,7 +11,7 @@ from sdt import changepoint
 from tensorflow import keras
 from py4bleaching.utilities.collect_model import download_model
 #step01 cleanup trajectories 
-def clean_trajectories(input_folder, output_folder):
+def clean_trajectories(input_folder, output_folder, matched):
         
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -51,6 +51,13 @@ def clean_trajectories(input_folder, output_folder):
                     coords_all.append(coords)
                 raw_trajectories['coords']=coords_all
                 raw_trajectories['Contour_ID']=IDs
+            if matched==True:
+                uniqueID=[]
+                for row in raw_trajectories['molecule_number']:
+                    split=row.split('_')
+                    ids=split[-3]
+                    uniqueID.append(ids)
+                raw_trajectories['uniqueID']=uniqueID
             raw_trajectories['treatment'] = exp_condition
             raw_trajectories['colocalisation'] = coloc_type
             raw_trajectories['protein'] = protein_type
@@ -65,7 +72,7 @@ def clean_trajectories(input_folder, output_folder):
 
     #now need to assign unique names to the molecules
     #smooshed_trajectories['metadata'] = smooshed_trajectories['treatment'] + '_' + smooshed_trajectories['colocalisation'] + '_' + smooshed_trajectories['protein'] + '_' + smooshed_trajectories['Contour_ID'] + '_' + smooshed_trajectories['coords'] 
-    colx=['treatment', 'colocalisation', 'protein', 'coords', 'Contour_ID']
+    colx=['Unique_ID','treatment', 'colocalisation', 'protein', 'coords', 'Contour_ID']
     #
     smooshed_trajectories['metadata']=['_'.join(vals) for vals in smooshed_trajectories[[col for col in colx if col in smooshed_trajectories.columns]].values]
     #line below does exact same thing as above, but different way (in case u want to change later)
@@ -83,10 +90,7 @@ def clean_trajectories(input_folder, output_folder):
     #split up into smaller chunks easier for streamlit stuff 
     normalised_trajectories.to_csv(f'{output_folder}normalised_clean_data.csv') 
 
-
-
 #step02 predict labels section 
-    
 def prepare_data_for_training(X_train, y_train, X_test, y_test,):
     # transform the labels from integers to one hot vectors
     enc = preprocessing.OneHotEncoder(categories='auto')
@@ -407,7 +411,7 @@ def calculating_step_sizes(step_sizes, output_folder):
     return step_sizes, median_steps
 
 #step04 calculating molecules sizes and plotting distributions   
-def calculating_stoichiometries(clean_data, step_sizes):
+def calculating_stoichiometries(clean_data, step_sizes, matched):
     # filter out throwaway trajectories
     usable_trajectories = clean_data[clean_data['label'] != 2.0].copy()
     #usable_trajectories = clean_data.copy()
@@ -428,7 +432,9 @@ def calculating_stoichiometries(clean_data, step_sizes):
         molecule_counts[f'{size_type}_mol_count'] = molecule_counts['max_fluorescence'] / size
         
     molecule_counts[[col for col in molecule_counts.columns if 'molecule_number' not in col]]=molecule_counts[[col for col in molecule_counts.columns if 'molecule_number' not in col]].astype(float)
-    molecule_counts[['treatment', 'colocalisation', 'protein', 'Contour_ID', 'coordsX','coordsY', 'molecule_number']] = molecule_counts['molecule_number'].str.split('_', expand = True)
+    if matched==True:
+        molecule_counts[['Unique_ID','treatment', 'colocalisation', 'protein', 'molecule_number']] = molecule_counts['molecule_number'].str.split('_', expand=True)
+    molecule_counts[['treatment', 'colocalisation', 'protein','molecule_number']] = molecule_counts['molecule_number'].str.split('_', expand = True)
     return molecule_counts
 
 def plotting_molecule_size(step_sizes, molecule_counts, output_folder):
@@ -453,11 +459,18 @@ def plotting_molecule_size(step_sizes, molecule_counts, output_folder):
             plt.show()
 
 
-def sanity_checks(clean_data):
+def sanity_checks(clean_data, matched):
     time_data = clean_data[[col for col in clean_data.columns.tolist() if col not in ['molecule_number', 'label']]].reset_index(drop=True)
     test_Df = pd.melt(clean_data, id_vars= ['label', 'molecule_number'], value_vars=[f'{x}' for x in range(0, len(time_data.columns))], var_name='timepoint', value_name='intensity' )
 
-    test_Df[['treatment', 'colocalisation', 'protein', 'Contour_ID', 'coordsX','coordsY', 'molecule_number']] = test_Df['molecule_number'].str.split('_', expand = True)
+    if matched == True:
+        test_Df[['Unique_ID', 'treatment', 'colocalisation', 'protein',
+                 'molecule_number']] = test_Df['molecule_number'].str.split('_', expand=True)
+    else:
+        test_Df[['treatment', 'colocalisation', 'protein', 'molecule_number']
+                ] = test_Df['molecule_number'].str.split('_', expand=True)
+        
+    #test_Df[['treatment', 'colocalisation', 'protein', 'Contour_ID', 'coordsX','coordsY', 'molecule_number']] = test_Df['molecule_number'].str.split('_', expand = True)
 
     test_Df['timepoint']=test_Df['timepoint'].astype(int)
     sns.lineplot(data=test_Df, x='timepoint', y='intensity', hue='treatment')
@@ -470,8 +483,7 @@ def sanity_checks(clean_data):
 
 
 
-
-def pipeline(input_folder,output_folder, probability_threshold, model_name, x_norm):
+def pipeline(input_folder,output_folder, probability_threshold, model_name, x_norm matched):
 
     output_folders = ['clean_data', 'predict_labels', 'fitting_changepoints','calculate_molecule_size', 'model_for_prediction']
     
@@ -484,7 +496,7 @@ def pipeline(input_folder,output_folder, probability_threshold, model_name, x_no
 
     model_path = f'{output_folder}model_for_prediction/{model_name}.hdf5'
 
-    clean_trajectories(input_folder, f'{output_folder}clean_data/')
+    clean_trajectories(input_folder, f'{output_folder}clean_data/', matched=matched)
     #----------------------------------------------------
     #now predict labels
     # Read in dataset
@@ -555,9 +567,9 @@ def pipeline(input_folder,output_folder, probability_threshold, model_name, x_no
     clean_data = pd.read_csv(f'{output_folder}predict_labels/predicted_labels.csv')
     clean_data = clean_data.drop([col for col in clean_data.columns.tolist() if 'Unnamed: 0' in col], axis=1)
 
-    molecule_counts=calculating_stoichiometries(clean_data,step_sizes)
+    molecule_counts=calculating_stoichiometries(clean_data,step_sizes, matched=matched)
     plotting_molecule_size(step_sizes,molecule_counts,output_folder=f'{output_folder}calculate_molecule_size/')
-    sanity_checks(clean_data)
+    sanity_checks(clean_data, matched=matched)
 
     # save the data! YAY!
     molecule_counts.to_csv(f'{output_folder}calculate_molecule_size/molecule_counts.csv')
@@ -566,12 +578,12 @@ def pipeline(input_folder,output_folder, probability_threshold, model_name, x_no
 
 if __name__ == "__main__":
 
-    input_folder = 'imagejresults/Experiment32_hsp27_01/'
-    output_folder = 'Results/model_2_test/Hsp27_all/'
+    input_folder = '/'
+    output_folder = '/'
 
     #change this according to the model that you'd like to use (from the repo with all the models)
     model_name = 'Model_2'
     #update x_norm to be whatever you need it to be! i.e nothing if your model matches the shape of your data, 'build_new_model' if you want to use a model you like's weights but you performed a new experiment with vaiable timeseries length (ie the good model is 600 timepoints, and the new data is 900 timepoints), 'noise_50' if you use the model that was trained on data with the x axis padded with noise all to the same length (now pads your new data with noise all to the length of the data the model was trained on)(not so good). 'fill NAs' fills the x axis with NaN's (not good)
-    
+    matched=False
     x_norm = ''
-    pipeline(input_folder, output_folder, probability_threshold=0.5, model_name=model_name, x_norm=False)
+    pipeline(input_folder, output_folder, probability_threshold=0.5, model_name=model_name, x_norm=False, matched=False)
