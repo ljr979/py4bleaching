@@ -483,7 +483,7 @@ def sanity_checks(clean_data, matched):
 
 
 
-def pipeline(input_folder,output_folder, probability_threshold, model_name, x_norm matched):
+def pipeline(input_folder,output_folder, probability_threshold, model_name, x_norm, matched):
 
     output_folders = ['clean_data', 'predict_labels', 'fitting_changepoints','calculate_molecule_size', 'model_for_prediction']
     
