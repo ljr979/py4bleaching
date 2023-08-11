@@ -1,7 +1,6 @@
 import os
 import re
 from random import sample
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -10,6 +9,7 @@ from loguru import logger
 from sdt import changepoint
 from tensorflow import keras
 from py4bleaching.utilities.collect_model import download_model
+
 #step01 cleanup trajectories 
 def clean_trajectories(input_folder, output_folder, matched):
         
@@ -434,7 +434,8 @@ def calculating_stoichiometries(clean_data, step_sizes, matched):
     molecule_counts[[col for col in molecule_counts.columns if 'molecule_number' not in col]]=molecule_counts[[col for col in molecule_counts.columns if 'molecule_number' not in col]].astype(float)
     if matched==True:
         molecule_counts[['Unique_ID','treatment', 'colocalisation', 'protein', 'molecule_number']] = molecule_counts['molecule_number'].str.split('_', expand=True)
-    molecule_counts[['treatment', 'colocalisation', 'protein','molecule_number']] = molecule_counts['molecule_number'].str.split('_', expand = True)
+    else:
+        molecule_counts[['treatment', 'colocalisation', 'protein','molecule_number']] = molecule_counts['molecule_number'].str.split('_', expand = True)
     return molecule_counts
 
 def plotting_molecule_size(step_sizes, molecule_counts, output_folder):
