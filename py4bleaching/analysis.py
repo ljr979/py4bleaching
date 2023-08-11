@@ -72,7 +72,7 @@ def clean_trajectories(input_folder, output_folder, matched):
 
     #now need to assign unique names to the molecules
     #smooshed_trajectories['metadata'] = smooshed_trajectories['treatment'] + '_' + smooshed_trajectories['colocalisation'] + '_' + smooshed_trajectories['protein'] + '_' + smooshed_trajectories['Contour_ID'] + '_' + smooshed_trajectories['coords'] 
-    colx=['Unique_ID','treatment', 'colocalisation', 'protein', 'coords', 'Contour_ID']
+    colx=['uniqueID','treatment', 'colocalisation', 'protein', 'coords', 'Contour_ID']
     #
     smooshed_trajectories['metadata']=['_'.join(vals) for vals in smooshed_trajectories[[col for col in colx if col in smooshed_trajectories.columns]].values]
     #line below does exact same thing as above, but different way (in case u want to change later)
@@ -306,7 +306,7 @@ def find_changepoints(df, output_folder, molecule_names=False, intensity_column=
         # add a column to contain the molecule name for later grouping
         molecule_df['molecule_name'] = molecule
 
-        if visualise:
+        if visualise == True:
             fig, axes = plt.subplots(1, 2, figsize=(20,5))
             sns.lineplot(data=molecule_df, x='time', y='changepoint_probs', ax=axes[0])
             axes[0].axhline(probability_threshold, color='green', linestyle='dotted')
@@ -534,8 +534,7 @@ def pipeline(input_folder,output_folder, probability_threshold, model_name, x_no
     
     #creates a subset of the data randomly to visualise the thresholds for small molecules
     test_list = [col for col in small_molecules.columns.tolist() if col is not 'time']
-    molecules_to_test = sample(test_list, 20)
-    #molecules_to_test = sample([col for col in small_molecules.columns.tolist() if col is not 'time'], 5)
+    molecules_to_test = sample(test_list, 1)
 
     #performs the function and visualise the sample. once probability is checked can move forward
     test_probs = find_changepoints(small_molecules, f'{output_folder}fitting_changepoints/', molecules_to_test, intensity_column='fluorescence', probability_threshold=probability_threshold, visualise=True)
