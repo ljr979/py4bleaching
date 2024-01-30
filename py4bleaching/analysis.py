@@ -12,7 +12,14 @@ from py4bleaching.utilities.collect_model import download_model
 
 #step01 cleanup trajectories 
 def clean_trajectories(input_folder, output_folder, matched):
-        
+    """reads in trajectories from imagej output, and keeps the metadata stored in a 'molecule name' which is unique so that multiple files with many molecules can be combined.
+
+    Args:
+        input_folder (str): input path
+        output_folder (str): output path
+        matched (Bool): have you matched the trajectories before running py4bleaching? need to say True if yes, False if no, this determines how the molecule name is managed.
+    """
+
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
@@ -89,9 +96,19 @@ def clean_trajectories(input_folder, output_folder, matched):
 
     #split up into smaller chunks easier for streamlit stuff 
     normalised_trajectories.to_csv(f'{output_folder}normalised_clean_data.csv') 
-
 #step02 predict labels section 
 def prepare_data_for_training(X_train, y_train, X_test, y_test,):
+    """changes the format of the data so that the machine learning model can train the shape of the data. This function should only be called during training (not here), or if you need to 'build new model' 
+
+    Args:
+        X_train (array): array of the x and y train and test data
+        y_train (array): array of the x and y train and test data
+        X_test (array): array of the x and y train and test data
+        y_test (array): array of the x and y train and test data
+
+    Returns:
+        _type_: _description_
+    """
     # transform the labels from integers to one hot vectors
     enc = preprocessing.OneHotEncoder(categories='auto')
     enc.fit(np.concatenate((y_train, y_test), axis=0).reshape(-1, 1))
@@ -108,15 +125,29 @@ def prepare_data_for_training(X_train, y_train, X_test, y_test,):
 
     return X_train, y_train, X_test, y_test
 
-
 def fit_classifier(X_train, y_train, X_test, y_test, classifier_name, output_directory):
-  
+    """like prepare data for training, this only required for building a new model in this context. this fits the desired classifier (we use resnet) to the data you have, using the test and train arrays
+
+    Args:
+        classifier_name (str): type of classifier you want to use (resnet is used in this context)
+        output_directory (str): where to save
+    """
     classifier = create_classifier(classifier_name, input_shape, nb_classes, output_directory)
 
     classifier.fit(X_train, y_train, X_test, y_test, y_true)
 
-
 def create_classifier(classifier_name, input_shape, nb_classes, output_directory, verbose=False):
+    """creates your classifier based on what you specify
+
+    Args:
+        classifier_name (str): whichever type you choose
+        input_shape: (len(time_data.T), 1)
+        nb_classes (int): _description_
+        output_directory (str): _description_
+        verbose (bool, optional): _description_. Defaults to False.
+
+
+    """
     if classifier_name == 'fcn':
         from dl4tsc.classifiers import fcn
         return fcn.Classifier_FCN(output_directory, input_shape, nb_classes, verbose)
@@ -148,22 +179,30 @@ def create_classifier(classifier_name, input_shape, nb_classes, output_directory
         from dl4tsc.classifiers import inception
         return inception.Classifier_INCEPTION(output_directory, input_shape, nb_classes, verbose)
 
-
 # to build new model without training, need to DEFINE the 'resnet' class neural network. did this by defining the class but created this classifier using the function 'create_classifier' which I used in my training script, but to do this also had to create shape of data and nb classes using 'long_trajectories' dataframe (because 'create_classifier' function imports the class 'resnet' and gives shape etc. based on a datafram  to get the shape)
 
 def make_new_model(time_data, output_folder, robust_weights_path):
+    """this function does the work when you choose to use a model which is made via weights transfer. This one makes the actual new model architecture based on the x and y axis of newly obtained data, then adds the weights of another learning model into this new architecture.
 
+    Args:
+        time_data (df): dataframe containing the fluorescence trajectories without molecule names (just timeseries data)
+        output_folder (str): where to save
+        robust_weights_path (str): path to the model whose weights you wish to transfer
+
+    Returns:
+        _type_: the time data dataframe, and the new model
+    """
     #define the other inputs to be able to create the classifier
     nb_classes = 3
     input_shape = (len(time_data.T), 1)
     classifier_name = 'resnet'
-    output_directory=output_folder
+    
 
     #create the model architecture ('resnet' neural network) that is not built based on training
-    classifier = create_classifier(classifier_name, input_shape, nb_classes, output_directory)
+    classifier = create_classifier(classifier_name, input_shape, nb_classes, output_directory=output_folder)
 
     #call the 'build_model' function within the class called 'resnet'
-    model=classifier.build_model(input_shape= input_shape, nb_classes=nb_classes)
+    model = classifier.build_model(input_shape= input_shape, nb_classes=nb_classes)
     #save this new architecture (no weights adjusted yet )
     model.save(output_folder + 'new_model_architecture.hdf5')
 
@@ -181,8 +220,18 @@ def make_new_model(time_data, output_folder, robust_weights_path):
     model_name = 'new_model_robust_weights'
     return time_data, model_name
 
-
 def prepare_data_to_predict(raw_data, time_data, output_folder, model_path, model_name, x_norm=False):
+    """formats data so that the model is able to predict labels 
+
+    Args:
+        raw_data (df): unprocessed data
+        time_data (df): data with ONLY fluorescence timeseries (no other info)
+        output_folder (str): where to save
+        model_path (str): where to find model
+        model_name (str): name of model to fetch
+        x_norm (bool, optional): how to treat the x-axis (options are 'build new model', 'noise_50', 'FillNAs' which should match to whichever model you want to use to predict labels). Defaults to False.
+
+    """
     time_columns = [int(col) for col in time_data.columns.tolist() if col not in ['molecule_number', 'label']]
     # if max(time_columns) != 1000:
     # new_columns = [str(timepoint) for timepoint in range(max(time_columns)+1, 1000)]
@@ -251,8 +300,21 @@ def prepare_data_to_predict(raw_data, time_data, output_folder, model_path, mode
     return time_data, model_name
 
 def predict_labels(raw_data, time_data, output_folder, model_path, model_name, x_norm=False):
+    """predicts the labels on the data using whichever specified model you want to use
+
+    Args:
+        raw_data (df): dataframe with all data
+        time_data (df): dataframe with only fluorescence 
+        output_folder (str): where to save
+        model_path (str): path to model location
+        model_name (str): name of the model you want to use
+        x_norm (bool, optional): how to treat the x-axis (options are 'build new model', 'noise_50', 'FillNAs' which should match to whichever model you want to use to predict labels). Defaults to False.
+
+    Returns:
+        _type_: _description_
+    """
     # evaluate best model on new dataset
-    x_predict, model_name = prepare_data_to_predict(raw_data, time_data, output_folder, model_path, model_name, x_norm='build_new_model')
+    x_predict, model_name = prepare_data_to_predict(raw_data, time_data, output_folder, model_path, model_name, x_norm=x_norm)
     input_shape = x_predict.shape[1:]
 
     model_path = f'{output_folder}model_for_prediction/{model_name}.hdf5'
@@ -268,10 +330,6 @@ def predict_labels(raw_data, time_data, output_folder, model_path, model_name, x
 
     return time_data
 
-
-#step03 fitting changepoints section
-
-#defining function to plot and check probability threshold for detecting changepoints
 def find_changepoints(df, output_folder, molecule_names=False, intensity_column='fluorescence', probability_threshold=0.5, visualise=False):
     """this function has the purpose of using the 'Bayesian offline' changepoint module to find the changepoints in the trajectories of all the 'small molecules' in the trajectories that have been picked by the model and processed with labels. This module outputs the probability of a change point (a step in fluorescence) at every single point in the trajectory. we then use this data to determine what changepoints are real, and then find the step size. 
 
@@ -366,11 +424,19 @@ def plot_fitted_example(processed_molecules, molecule_name, output_folder=False)
     plt.show()
 
 def find_photobleaching_steps(processed_molecules):
-     # calcucate the mean fluorescence value at each step before it steps down to the next level
+    
+    """ calcucate the mean fluorescence value at each step before it steps down to the next level
+
+    Args:
+        processed_molecules (df): the molecules that have been processed by model and changepoint identification
+
+    Returns:
+        df: df containing step sizes and also one with the processed molecules
+    """
     step_fluorescence = processed_molecules.groupby(['molecule_name', 'step_label']).median()['fluorescence'].reset_index().rename(columns={'fluorescence': 'step_fluorescence'})
 
     processed_molecules = pd.merge(processed_molecules, step_fluorescence, on=['molecule_name', 'step_label'], how='outer')
-        # calculate stepsize
+    # calculate stepsize
     step_sizes=[]
     for molecule, df in step_fluorescence.groupby('molecule_name'):
         steps = df['step_fluorescence'].tolist()
@@ -382,8 +448,16 @@ def find_photobleaching_steps(processed_molecules):
     step_sizes = step_sizes[step_sizes['step_size'] > 0]
     return processed_molecules, step_sizes
 
-
 def calculating_step_sizes(step_sizes, output_folder):
+    """finds the median size of each 'type' of step (small molecules, last steps down, and single step trajectories)
+
+    Args:
+        step_sizes (df): dataframe with the step sizes in it
+        output_folder (str): where to save them
+
+    Returns:
+        median step sizes df, and step sizes df
+    """
     # collect list of matched molecule names and steps for each condition type: last steps with highest step label, and then single steps with highest step label in molecules that only have one step
     last_steps = [(molecule, df.sort_values('step_label').iloc[-1]['step_label']) for molecule, df in step_sizes.groupby('molecule_name')]
     single_steps = [(molecule, df.sort_values('step_label').iloc[-1]['step_label']) for molecule, df in step_sizes.groupby('molecule_name') if len(df) == 2]
@@ -412,6 +486,16 @@ def calculating_step_sizes(step_sizes, output_folder):
 
 #step04 calculating molecules sizes and plotting distributions   
 def calculating_stoichiometries(clean_data, step_sizes, matched):
+    """calculate the actual molecule size from the step size and raw data
+
+    Args:
+        clean_data (df): contains all raw trajectories
+        step_sizes (df): contains steps size data for this dataset
+        matched (bool): did you match teh molecules before this analysis? if yes, it will determine how the module deals with the mol names
+
+    Returns:
+        molecule_counts: dataframe with the count of number of molecules / trajectory
+    """
     # filter out throwaway trajectories
     usable_trajectories = clean_data[clean_data['label'] != 2.0].copy()
     #usable_trajectories = clean_data.copy()
@@ -439,6 +523,13 @@ def calculating_stoichiometries(clean_data, step_sizes, matched):
     return molecule_counts
 
 def plotting_molecule_size(step_sizes, molecule_counts, output_folder):
+    """plot the molecule size in a histogram
+
+    Args:
+        step_sizes (df): 
+        molecule_counts (df): 
+        output_folder (str): where to save
+    """
     #split and plot for different experiment treatments
     # Visualise distribution of molecules
     for size_type, size in step_sizes.items():
@@ -461,6 +552,12 @@ def plotting_molecule_size(step_sizes, molecule_counts, output_folder):
 
 
 def sanity_checks(clean_data, matched):
+    """plots the average fluorescene intensity of each treatment in the experiment
+
+    Args:
+        clean_data (_type_): _description_
+        matched (_type_): _description_
+    """
     time_data = clean_data[[col for col in clean_data.columns.tolist() if col not in ['molecule_number', 'label']]].reset_index(drop=True)
     test_Df = pd.melt(clean_data, id_vars= ['label', 'molecule_number'], value_vars=[f'{x}' for x in range(0, len(time_data.columns))], var_name='timepoint', value_name='intensity' )
 
@@ -482,10 +579,17 @@ def sanity_checks(clean_data, matched):
         plt.title(treatment)
         plt.show()
 
-
-
 def pipeline(input_folder,output_folder, probability_threshold, model_name, x_norm, matched):
+    """runs all the functions to find molecule step size
 
+    Args:
+        input_folder (str): location of the trajectories (raw trajectories nested from imagej)
+        output_folder (str): where to save this data
+        probability_threshold (float): the threshold for defining a changepoint
+        model_name (str): the name of the model you want to use
+        x_norm (str): how to handle the x axis (to match the chosen model)
+        matched (bool): whether the molecules are matched prior to running this
+    """
     output_folders = ['clean_data', 'predict_labels', 'fitting_changepoints','calculate_molecule_size', 'model_for_prediction']
     
     for folder in output_folders:
@@ -575,7 +679,6 @@ def pipeline(input_folder,output_folder, probability_threshold, model_name, x_no
     molecule_counts.to_csv(f'{output_folder}calculate_molecule_size/molecule_counts.csv')
     molecule_counts.groupby(['treatment', 'colocalisation', 'protein']).median().reset_index().to_csv(f'{output_folder}calculate_molecule_size/molecule_counts_median.csv')
 
-
 if __name__ == "__main__":
 
     input_folder = '/'
@@ -584,6 +687,6 @@ if __name__ == "__main__":
     #change this according to the model that you'd like to use (from the repo with all the models)
     model_name = 'Model_2'
     #update x_norm to be whatever you need it to be! i.e nothing if your model matches the shape of your data, 'build_new_model' if you want to use a model you like's weights but you performed a new experiment with vaiable timeseries length (ie the good model is 600 timepoints, and the new data is 900 timepoints), 'noise_50' if you use the model that was trained on data with the x axis padded with noise all to the same length (now pads your new data with noise all to the length of the data the model was trained on)(not so good). 'fill NAs' fills the x axis with NaN's (not good)
-    matched=False
+    matched = False
     x_norm = ''
     pipeline(input_folder, output_folder, probability_threshold=0.5, model_name=model_name, x_norm=False, matched=False)

@@ -1,6 +1,5 @@
 import os
 import re
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -12,9 +11,6 @@ from sklearn import preprocessing
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import GridSearchCV, train_test_split
 from tensorflow import keras
-#from src.python_photobleaching.analysis import clean_trajectories
-
-
 from random import sample
 from sklearn.preprocessing import MinMaxScaler
 from collections import Counter
@@ -187,4 +183,4 @@ if __name__ == "__main__":
     #this does the work, saves the new model and the model with the empty architecture (no weights) in your output folder
     adjusted_weights_model, time_data = make_new_model(time_data, output_folder, robust_weights_path)
 
-#NOTE: need to make this into functions to clean it up, then add it into the py4bleaching section!!!! 
+
