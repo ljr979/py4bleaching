@@ -1,7 +1,8 @@
+    """This script can perform all functions required to train a new resnet model for trajectory classification if needed.
 
+    """
 import os
 import re
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -15,10 +16,15 @@ from sklearn.model_selection import GridSearchCV, train_test_split
 from tensorflow import keras
 from py4bleaching.analysis import clean_trajectories
 from random import sample
-#need to add clean trajectories import :) 
-#---------------------------------------
 
 def prepare_data_for_labelling(input_files, output_folder, streamlit=False):
+    """This function prepares the trajectories data you want to train your model on, to manually label the training dataset in an app called 'streamlit' where they get labelled and saved to then train the model later on.
+
+    Args:
+        input_files (list): a list of paths to 'cleaned_data.csv' files (output by 'clean_trajectories' function)
+        output_folder (string): path to folder you want to save data to
+        streamlit (bool, optional): if you have not performed the streamlit labelling already, this is False, and as such normalises the data on the Y axis, and splits it up into batches of 100 trajectories to label in streamlit and saves them as such. Defaults to False.
+    """
     if not os.path.exists (f'{output_folder}labelling_molecules/'):
         os.makedirs(f'{output_folder}labelling_molecules/')
 
@@ -38,7 +44,6 @@ def prepare_data_for_labelling(input_files, output_folder, streamlit=False):
     smooshed_trajectories.drop(['treatment', 'colocalisation', 'protein', 'number'], axis=1, inplace=True)
 
     if not streamlit:
-
         #normalisation section where we normalise to max value in each trajectory
         normalised_trajectories = smooshed_trajectories.copy().set_index('molecule_number')
         normalised_trajectories = (normalised_trajectories.T/normalised_trajectories.T.max()).T
@@ -57,8 +62,14 @@ def prepare_data_for_labelling(input_files, output_folder, streamlit=False):
 
 #Run streamlit NOW on smooshed_trajectories df. 
 #need to define the labels dictionary in the 'main' to map the 0, 1 , 2 for discard, small, big
-
 def map_labels(input_path, output_folder, labels):
+    """this maps the names you label each trajectory (classifying them) in streamlit, to be 0, 1, or 2 for the model, as they need to be trained as numbers not words. Saves for training.
+
+    Args:
+        input_path (string): path to the labelled, collated trajectories
+        output_folder (string): path to the folder you want this to be saved in
+        labels (dictionary): dictionary to define what you labelled each as in streamlit, to 0 1 or 2.
+    """
     labelled_data=pd.read_csv(input_path)
     labelled_data.drop([col for col in labelled_data.columns if 'Unnamed' in col], axis=1, inplace=True)
     labelled_data['label'] = labelled_data['label'].map(labels)
@@ -66,7 +77,7 @@ def map_labels(input_path, output_folder, labels):
     labelled_data.to_csv(f'{output_folder}labelled_data.csv')
 
 #--------------------------------------------------------------
-#this section here is the 'train_model script. this plots the data, splits up and preps train and test data for you, fits it with a classifier probability, then creates the actual classifier.
+#this section here is the 'training model script. this plots the data, splits up and preps train and test data for you, fits it with a classifier probability, then creates the actual classifier.
 def plot_data_samples(dataframe, sample_numbers):
     ''' 
     Plot the time series data relating to the input list of sample numbers.
@@ -105,6 +116,17 @@ def plot_data_samples(dataframe, sample_numbers):
 
 
 def prepare_data_for_training(X_train, y_train, X_test, y_test,):
+    """functions to prepare the data for the model, it needs one hot vectors so changes the train and test into that datatype
+
+    Args:
+        X_train (array): all are arrays from train_test_split from scikitlearn
+        y_train (array): 
+        X_test (array): 
+        y_test (array): 
+
+    Returns:
+        multivariate one dimensional arrays: one hot encoded arrays split up for training and testing.
+    """
     # transform the labels from integers to one hot vectors
     enc = preprocessing.OneHotEncoder(categories='auto')
     enc.fit(np.concatenate((y_train, y_test), axis=0).reshape(-1, 1))
@@ -123,7 +145,16 @@ def prepare_data_for_training(X_train, y_train, X_test, y_test,):
 
 
 def fit_classifier(X_train, y_train, X_test, y_test, classifier_name, output_directory):
+    """fits the classifier (we use resnet but can adjust it to another if necessary) to the split we made previously.
 
+    Args:
+        X_train (array): data split into train and test from the trajectories
+        y_train (array): data split into train and test from the trajectories
+        X_test (array): data split into train and test from the trajectories
+        y_test (array): data split into train and test from the trajectories
+        classifier_name (string): name of the classifier we want to use for our model architecture
+        output_directory (string): where to save the model classifier
+    """
     nb_classes = len(np.unique(np.concatenate((y_train, y_test), axis=0)))
 
     # transform the labels from integers to one hot vectors
@@ -147,6 +178,18 @@ def fit_classifier(X_train, y_train, X_test, y_test, classifier_name, output_dir
 
 
 def create_classifier(classifier_name, input_shape, nb_classes, output_directory, verbose=False):
+    """creates the classifier we want to use for our model
+
+    Args:
+        classifier_name (str): name of classifier to choose
+        input_shape (tuple of integers): shape of the X train data
+        nb_classes (int): number of classes (how many classifications- we use 3)
+        output_directory (string): path to save
+        verbose (bool, optional):  Defaults to False.
+
+    Returns:
+        _type_: _description_
+    """
     if classifier_name == 'fcn':
         from dl4tsc.classifiers import fcn
         return fcn.Classifier_FCN(output_directory, input_shape, nb_classes, verbose)
@@ -180,7 +223,15 @@ def create_classifier(classifier_name, input_shape, nb_classes, output_directory
 
 
 def train_new_model(time_data, labels, output_folder, itrs=1, classifier_name='resnet'):
+    """train a new model and save to classify your photobleaching data trajectories
 
+    Args:
+        time_data (df): dataframe containing all timeseries data (no molecule number)
+        labels (list): list of the label names we used to classify the trajectories
+        output_folder (string): path to save 
+        itrs (int, optional): number of interations in training the new model. Defaults to 1.
+        classifier_name (str, optional): name of classifier. Defaults to 'resnet'.
+    """
     # Split data into train and test portions
     X_train, X_test, y_train, y_test = train_test_split(time_data, labels)
 
@@ -212,14 +263,30 @@ def train_new_model(time_data, labels, output_folder, itrs=1, classifier_name='r
             [logger.info(f'{measure}: {round(val, 2)}') for measure, val in model_metrics.T.reset_index().values]
 
 
-
 def prepare_data_to_predict(time_data):
+    """reshape time data for model
+
+    Args:
+        time_data (df): trajectory data no mol name
+
+    Returns:
+        df: time data reshaped
+    """
     if len(time_data.shape) == 2:  # if univariate
         # add a dimension to make it multivariate with one dimension 
         time_data = time_data.values.reshape((time_data.shape[0], time_data.shape[1], 1))
     return time_data
 
 def predict_labels(time_data, model_path):
+    """predicts labels on new data
+
+    Args:
+        time_data (df): reshaped time data (fluorescence trajectories)
+        model_path (str): path to the model you just created
+
+    Returns:
+        df: time data with another column containing the predicted label (predicted by his new model)
+    """
     # evaluate best model on new dataset
     x_predict = prepare_data_to_predict(time_data)
     input_shape = x_predict.shape[1:]
@@ -232,8 +299,12 @@ def predict_labels(time_data, model_path):
 
 
 
-def plot_labels():
+def plot_labels(time_data):
+    """plots mean fluorescence for each label
 
+    Args:
+        time_data (df): trajectories with label
+    """
     data=pd.melt(time_data, id_vars='label', value_vars=[col for col in time_data.columns.tolist() if 'label' not in col], var_name='time')
 
     #plots the data in the colour for the label it was given
@@ -243,6 +314,15 @@ def plot_labels():
     palette = {0.0: 'firebrick', 1.0: 'darkorange', 2.0: 'rebeccapurple', '0': 'firebrick', '1': 'darkorange', '3': 'rebeccapurple'}
 
 def compare_labels(raw_data, time_data):
+    """function compares the predicted vs labelled (manually) classification
+
+    Args:
+        raw_data (df): df containing our labels
+        time_data (df): df containing predicted labels by model
+
+    Returns:
+        df  : raw data containing the original vs predicted label
+    """
     #compares the original label column with the predicted label column?
     raw_data['predict_label'] = time_data['label']
     raw_data['diff'] = [0 if val == 0 else 1 for val in (raw_data['label'] - raw_data['predict_label'])]
@@ -250,6 +330,12 @@ def compare_labels(raw_data, time_data):
 
 
 def plot_comparison(comparison, palette=False):
+    """function to plot the label 'truth' (by us) versus the label 'predicted' (by the model) to test its' accuracy / if we agree with its' choice (in this plottingwe can see if we actually agree with its choice more than our original choice, or if it's wildly wrong.)
+
+    Args:
+        comparison (df): the 'raw data' df with the original and predicted labels
+        palette (bool, optional): dictionary which maps the label to the colour we want it to plot as. Defaults to False.
+    """
     if not palette:
         palette='muted'
 
@@ -273,7 +359,13 @@ def plot_comparison(comparison, palette=False):
 
 
 def pipeline(input_path,output_folder, labels):
+    """the workflow to train the new model and check it's ability to predict the labels.
 
+    Args:
+        input_path (str): the path to the 'smooshed labels' (trajectories with our manually labelled shapes.)
+        output_folder (str): output folder for the model (top level that we are working in)
+        labels (dict): dictionary defining the labels (name of label that we manually used, mapping to 0, 1 or 2 for the model)
+    """
     output_folders = ['trained_model','validation']
     for folder in output_folders:
         if not os.path.exists(f'{output_folder}{folder}/'):
@@ -312,23 +404,26 @@ def pipeline(input_path,output_folder, labels):
     
 
 if __name__ == "__main__":
-    input_files = [
-        'Results/training_model/20201222_Exp_15_647data/clean_data/cleaned_data.csv',
-        'Results/training_model/20210113_Exp_17_647data/clean_data/cleaned_data.csv'
-        ]
-    output_folder = 'Results/training_model/20210525_647datacompiled/'
+
+    output_folder = 'Results/training_model/'
         
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
+    #location of files containing trajectories that are completely unprocessed that you want to train data on (just need to be cleaned up)
+    input_folder=''
+    clean_trajectories(input_folder, output_folder, matched=False)
+    #now get this saved clean trajectories so you can use them in streamlit
+    input_files = [[f'{root}/{filename}' for filename in files if 'cleaned_data.csv' in filename] for root, dirs, files in os.walk(f'{input_folder}')]
+    #the below line is a confusing sentence that flattens the list from being multiple lists into one list
+    input_files = [item for sublist in input_files for item in sublist]
     prepare_data_for_labelling(input_files, output_folder, streamlit=False)
 
     #now do streamlit at this point and come back to run pipeline (now have a bunch of normalised trajectory files with same unique names cause it's easier for streamlit, and just smoosh them back together for training model)
+
     #giving empty list for the input files because in the previous running of this function we define the input files as a bunch of files that have 'labelled_data' in them, which is what we get from strealit output
     prepare_data_for_labelling(input_files=[], output_folder=output_folder, streamlit=True)
     #input path for the labelled molecules after streamlit
-    #input_path = f'Results/training_model/20210525_647datacompiled/labelling_molecules/labelled_molecules.csv'
-
     input_path= f'{output_folder}labelling_molecules/smooshed_labels.csv'
 
     #change this dictionary depending on what I label them in streamlit
