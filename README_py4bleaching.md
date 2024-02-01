@@ -20,7 +20,13 @@ Each section is briefly described below.
 |model for prediction|```.hdf5``` files ```Model_name```, ```model_init```, ```model_architecture```, ```new model name```|These examples are for using the 'build new model' x_norm key word, i.e. these files are output for those situations where you make a whole new model to match your new data x limits. model name is the 'robust' model, model_architecture is the architecture (without weights) for the new model, and the 'new model name' is the new model with weights from the old model. Other model types will just save the model you have chosen here|
 |predict labels|```normalised_with_labels.csv```, ```predicted_labels.csv```|the data that is y-normalised for each trajectory, wit hthe model-predicted labels included (with unique mol names). Predicted labels is the file which has these labels mapped back onto the RAW (not normalised) data for calculating mol size and step size|
 
-
+# Training a resnet model
+The script titled ```training.py``` can be run on trajectories that have been manually labelled such that a new model is generated and can be called upon by the analysis section of py4bleaching. These models should be added to the repository ```py4bleaching_models``` which can be found [**here**](https://github.com/ljr979/py4bleaching_models).
+The workflow for this is as follows:
+1. gather trajectories by photobleaching molecules using TIRF microscopy
+2. run training script up to the point where you are directed to **'label molecules'**. This is the point at which you need to visualise your trajectories and assign a label to them manually. These should indicate they ```(0)``` do not have clear photobleaching steps ```(1)``` do have clear photobleaching steps ```(2)``` are not appropriate for further analysis (will be disregarded)
+3. run the remainder of ```training.py``` on the trajectories file with the labels in it, to produce the model
+4. The model and information on the type of data is was trained on should be added into py4bleaching_models repository. 
 
 # A  note on model selection
 
