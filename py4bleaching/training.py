@@ -1,6 +1,6 @@
-    """This script can perform all functions required to train a new resnet model for trajectory classification if needed.
+"""This script can perform all functions required to train a new resnet model for trajectory classification if needed.
 
-    """
+"""
 import os
 import re
 import matplotlib.pyplot as plt
@@ -60,7 +60,7 @@ def prepare_data_for_labelling(input_files, output_folder, streamlit=False):
         smooshed_trajectories.to_csv(f'{output_folder}labelling_molecules/smooshed_labels.csv')
 
 
-#Run streamlit NOW on smooshed_trajectories df. 
+#label molecules now
 #need to define the labels dictionary in the 'main' to map the 0, 1 , 2 for discard, small, big
 def map_labels(input_path, output_folder, labels):
     """this maps the names you label each trajectory (classifying them) in streamlit, to be 0, 1, or 2 for the model, as they need to be trained as numbers not words. Saves for training.
@@ -298,7 +298,6 @@ def predict_labels(time_data, model_path):
     return time_data
 
 
-
 def plot_labels(time_data):
     """plots mean fluorescence for each label
 
@@ -357,7 +356,6 @@ def plot_comparison(comparison, palette=False):
 
 #--------------------
 
-
 def pipeline(input_path,output_folder, labels):
     """the workflow to train the new model and check it's ability to predict the labels.
 
@@ -402,7 +400,6 @@ def pipeline(input_path,output_folder, labels):
     plot_comparison(comparison, palette=palette)
 
     
-
 if __name__ == "__main__":
 
     output_folder = 'Results/training_model/'
@@ -419,14 +416,14 @@ if __name__ == "__main__":
     input_files = [item for sublist in input_files for item in sublist]
     prepare_data_for_labelling(input_files, output_folder, streamlit=False)
 
-    #now do streamlit at this point and come back to run pipeline (now have a bunch of normalised trajectory files with same unique names cause it's easier for streamlit, and just smoosh them back together for training model)
+    #now label molecules at this point and come back to run pipeline (now have a bunch of normalised trajectory files with same unique names and just smoosh them back together for training model)
 
-    #giving empty list for the input files because in the previous running of this function we define the input files as a bunch of files that have 'labelled_data' in them, which is what we get from strealit output
+    #giving empty list for the input files because in the previous running of this function we define the input files as a bunch of files that have 'labelled_data' in them, which is what we get from labelling output
     prepare_data_for_labelling(input_files=[], output_folder=output_folder, streamlit=True)
-    #input path for the labelled molecules after streamlit
+    #input path for the labelled molecules after labelling
     input_path= f'{output_folder}labelling_molecules/smooshed_labels.csv'
 
-    #change this dictionary depending on what I label them in streamlit
+    #change this dictionary depending on what I label them in manual labelling steps
     labels={'big':0, 'small':1, 'discard':2}
 
     pipeline(input_path, output_folder, labels)
